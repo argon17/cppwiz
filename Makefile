@@ -2,10 +2,22 @@ CXX := g++
 CXXFLAGS := -std=c++17 -Wall -Wextra -pedantic
 RELEASE_FLAGS := -O2 -DNDEBUG
 DEBUG_FLAGS := -g -O0 -DDEBUG
+LDFLAGS :=
 
 SRC := cppwiz.cpp
 BIN_DIR := build/bin
-TARGET := $(BIN_DIR)/cppwiz
+
+# Detect Windows (MinGW / MSYS2)
+ifeq ($(OS),Windows_NT)
+  TARGET := $(BIN_DIR)/cppwiz.exe
+  LDFLAGS += -lws2_32
+  MKDIR = if not exist "$(subst /,\,$(BIN_DIR))" mkdir "$(subst /,\,$(BIN_DIR))"
+  RM = if exist build rmdir /s /q build
+else
+  TARGET := $(BIN_DIR)/cppwiz
+  MKDIR = mkdir -p $(BIN_DIR)
+  RM = rm -rf build
+endif
 
 .PHONY: all release debug clean help
 
@@ -20,14 +32,14 @@ debug: $(TARGET)
 	@echo "✓ Debug build complete: $(TARGET)"
 
 $(TARGET): $(SRC)
-	@mkdir -p $(BIN_DIR)
-	$(CXX) $(CXXFLAGS) -o $@ $<
+	@$(MKDIR)
+	$(CXX) $(CXXFLAGS) -o $@ $< $(LDFLAGS)
 
 run: release
 	./$(TARGET) --help
 
 clean:
-	rm -rf build
+	@$(RM)
 	@echo "✓ Cleaned build artifacts"
 
 help:

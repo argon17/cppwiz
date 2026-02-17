@@ -1,17 +1,85 @@
-using namespace std;
 #include <iostream>
 #include <cstring>
 #include <string>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <errno.h>
-#include <getopt.h>
 
+#ifdef _WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #pragma comment(lib, "ws2_32.lib")
+#else
+  #include <arpa/inet.h>
+  #include <sys/socket.h>
+  #include <unistd.h>
+  #include <getopt.h>
+#endif
+
+using namespace std;
+
+#ifdef _WIN32
+  // getopt_long implementation for Windows
+  #define no_argument        0
+  #define required_argument  1
+
+  static char *optarg = nullptr;
+  static int optind = 1;
+  static int opterr = 1;
+
+  struct option {
+      const char *name;
+      int         has_arg;
+      int        *flag;
+      int         val;
+  };
+
+  static int getopt_long(int argc, char *const argv[], const char * /*optstring*/,
+                         const struct option *longopts, int *longindex)
+  {
+      while (optind < argc) {
+          const char *arg = argv[optind];
+          if (arg[0] != '-' || arg[1] != '-') { optind++; continue; }
+          arg += 2;  // skip "--"
+          for (int i = 0; longopts[i].name; i++) {
+              if (strcmp(arg, longopts[i].name) == 0) {
+                  if (longindex) *longindex = i;
+                  optind++;
+                  if (longopts[i].has_arg == required_argument) {
+                      if (optind < argc) { optarg = argv[optind++]; }
+                      else { cerr << "Option --" << longopts[i].name << " requires an argument.\n"; return '?'; }
+                  }
+                  return longopts[i].val;
+              }
+          }
+          cerr << "Unknown option: " << argv[optind] << "\n";
+          optind++;
+          return '?';
+      }
+      return -1;
+  }
+#endif
+
+
+#ifdef _WIN32
+static bool wsaInitialized = false;
+static void initWinsock()
+{
+    if (!wsaInitialized) {
+        WSADATA wsaData;
+        int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+        if (result != 0) {
+            throw std::runtime_error("WSAStartup failed: " + to_string(result));
+        }
+        wsaInitialized = true;
+    }
+}
+#endif
 
 int createUdpSocket()
 {
-    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+#ifdef _WIN32
+    initWinsock();
+#endif
+    int socket_fd = (int)socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0)
     {
         throw std::runtime_error("Failed to create UDP socket: " +
@@ -33,8 +101,13 @@ int sendUdpPacket(int socket_fd, const string &message, const string &target_ip,
         throw std::runtime_error("Invalid target address: " + target_ip);
     }
 
+#ifdef _WIN32
+    int sent_bytes = sendto(socket_fd, message.c_str(), (int)message.length(), 0,
+                           (sockaddr *)&target, sizeof(target));
+#else
     ssize_t sent_bytes = sendto(socket_fd, message.c_str(), message.length(), 0,
                                 (sockaddr *)&target, sizeof(target));
+#endif
 
     if (sent_bytes < 0)
     {
