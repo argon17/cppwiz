@@ -96,19 +96,27 @@ public:
     void turnOff()  { sendOnly("{\"method\":\"setPilot\",\"params\":{\"state\":false}}"); }
 
     void setBrightness(int v) {
+        turnOn(); // Ensure bulb is on when setting brightness
+
         sendOnly("{\"method\":\"setPilot\",\"params\":{\"state\":true,\"dimming\":" + to_string(v) + "}}");
     }
 
     void setColor(int r, int g, int b) {
+        turnOn(); // Ensure bulb is on when setting color
+
         sendOnly("{\"method\":\"setPilot\",\"params\":{\"state\":true,\"r\":" + to_string(r) +
                  ",\"g\":" + to_string(g) + ",\"b\":" + to_string(b) + ",\"dimming\":100}}");
     }
 
     void setTemperature(int temp) {
+        turnOn(); // Ensure bulb is on when setting temperature
+
         sendOnly("{\"method\":\"setPilot\",\"params\":{\"state\":true,\"temp\":" + to_string(temp) + "}}");
     }
 
     void setScene(int scene_id) {
+        turnOn(); // Ensure bulb is on when setting scene
+
         sendOnly("{\"method\":\"setPilot\",\"params\":{\"state\":true,\"sceneId\":" + to_string(scene_id) + "}}");
     }
 
